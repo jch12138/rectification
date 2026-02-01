@@ -1,0 +1,64 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      String   @default("user") // "admin" or "user"
+  county    String?  // 绑定的县市，管理员可为空
+  createdAt DateTime @default(now())
+}
+
+model ImportBatch {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+
+  // Stores the column mapping configuration
+  // e.g. { "Machine Name": "text", "Photo": "image", "Date": "date" }
+  config_json String
+
+  tasks     Task[]
+}
+
+model Task {
+  id        Int      @id @default(autoincrement())
+
+  batchId   Int
+  batch     ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  county    String   // For permission isolation
+
+  // Original Excel row data
+  reference_json String
+
+  // User submission data
+  submission_json String?
+
+  status    String   @default("pending") // pending, submitted, rejected
+  rejectionReason String?
+  submittedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  logs      TaskLog[]
+}
+
+model TaskLog {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  action    String   // "submit", "reject"
+  reason    String?  // rejection reason
+  operator  String?  // username
+  createdAt DateTime @default(now())
+}
