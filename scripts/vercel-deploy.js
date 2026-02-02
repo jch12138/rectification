@@ -65,10 +65,30 @@ try {
     // Push database schema
     console.log('Running prisma db push...');
     try {
+        // Must generate client first for seed to work if we run it here, 
+        // but db push doesn't strictly need generated client js, it needs the schema.
+        // However, to run seed, we need the client.
+        
+        // 1. Generate Client for Postgres
+        console.log('Generating Prisma Client...');
+        execSync('npx prisma generate', { stdio: 'inherit' });
+
+        // 2. Push Schema
         execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
         console.log('Database schema pushed successfully.');
+
+        // 3. Seed Database
+        console.log('Seeding database...');
+        try {
+            execSync('node prisma/seed.js', { stdio: 'inherit' });
+            console.log('Database seeded successfully.');
+        } catch (seedError) {
+            console.warn('Warning: Seeding failed.', seedError.message);
+            // Don't fail the build just because seed failed, maybe data already exists
+        }
+
     } catch (e) {
-        console.error('Failed to push database schema. Ensure Vercel Postgres is connected.', e);
+        console.error('Failed to update database. Ensure Vercel Postgres is connected.', e);
         process.exit(1);
     }
 
